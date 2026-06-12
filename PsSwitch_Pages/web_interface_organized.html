@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle do Dispositivo</title>
+  <style>
+    /* --- Estilos Gerais --- */
+    html, body {
+      background: #0f2b36;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      color: #d5e6ee;
+    }
+
+    /* Contêiner para simular a proporção de celular */
+    .app-wrapper {
+      max-width: 480px;
+      width: 100%;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 10px 0;
+      box-sizing: border-box;
+    }
+
+    body, input {
+      background: #0f2b36;
+    }
+
+    .center, input {
+      text-align: center;
+    }
+
+    /* --- Layout e Flexbox --- */
+    .flex {
+      display: flex;
+    }
+
+    .jc {
+      justify-content: center;
+    }
+
+    .g12 {
+      gap: 12px;
+    }
+
+    .g10 {
+      gap: 10px;
+    }
+
+    /* --- Margens --- */
+    .mb10 {
+      margin-bottom: 10px;
+    }
+
+    .mt15 {
+      margin-top: 15px;
+    }
+
+    /* --- Componentes --- */
+    .card {
+      background: #113f50;
+      margin: 12px;
+      padding: 16px;
+      border-radius: 8px;
+    }
+
+    .title {
+      font-size: 24px;
+    }
+
+    .line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+
+    /* --- Botões e Inputs --- */
+    .btn, input {
+      color: #fff;
+    }
+
+    .btn {
+      width: 70px;
+      height: 60px;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      background: #1a6f97;
+    }
+
+    input {
+      width: 60px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #4b6a78;
+    }
+
+    .nameInput {
+      display: none;
+      width: 80%;
+      font-size: 22px;
+    }
+
+    .white {
+      background: #e6e6e6;
+      color: #1670c9;
+    }
+
+    .reset {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #e6e6e6;
+      color: #1670c9;
+      font-size: 16px;
+    }
+
+    /* --- Switches (Toggle) --- */
+    .switch input {
+      display: none;
+    }
+
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 22px;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #2a4d5b;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      top: 2px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    input:checked + .slider {
+      background: #1a6f97;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* --- Estilo Exclusivo do Plug (Botão de Power Grande) --- */
+    .btn-power-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 0;
+    }
+
+    .btn-power {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: none;
+        font-size: 80px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        line-height: 0;
+        transition: background 0.3s, color 0.3s;
+    }
+
+    .btn-power.off {
+      background: #2a4d5b;
+      color: #0f2b36;
+    }
+
+    .btn-power.on {
+      background: #e6e6e6;
+      color: #1a6f97;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-wrapper">
+
+    <!-- Card de Nome do Dispositivo -->
+    <div class="card center">
+      <span id="nameText" class="title">Carregando...</span>
+      <button id="editName" style="background: transparent; border: none; color: #d5e6ee; font-size: 18px;">✏️</button>
+      <input id="nameInput" class="nameInput">
+    </div>
+
+    <!-- Contêiner dinâmico exclusivo para alternar a interface principal (Ventilador ou Plug) -->
+    <div id="appContainer">
+      <!-- Card de Controle de Velocidade (Padrão Ventilador) -->
+      <div class="card layout-ventilador">
+        <div class="flex jc g12 mt15 mb10">
+          <button class="btn" id="off">OFF</button>
+          <button class="btn" id="v1">1</button>
+          <button class="btn" id="v2">2</button>
+          <button class="btn" id="v3">3</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card do Temporizador (Agora fixo e global para ambos os modos) -->
+    <div class="card">
+      <div class="center">⏱ Configurar Temporizador</div>
+      <div class="flex jc g10 mt15">
+        <input id="th" placeholder="Horas">
+        <input id="tm" placeholder="Min">
+        <button class="btn" id="timerState">OFF</button>
+        <button class="btn" id="tset">✓</button>
+      </div>
+      <div id="timerLabel" class="center mt15"></div>
+    </div>
+
+    <!-- Card de Detalhes Técnicos -->
+    <div class="card">
+      <div class="center mb10">Detalhes</div>
+      <div class="line">
+        <span>Status na inicialização</span>
+        <label class="switch">
+          <input type="checkbox" id="startState">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="line">
+        <span>Atualização OTA</span>
+        <label class="switch">
+          <input type="checkbox" id="otaState">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="line">Unique ID: <span id="uid"></span></div>
+      <div class="line">Versão do software: <span id="ver"></span></div>
+    </div>
+
+    <!-- Card de Reset -->
+    <div class="card">
+      <div class="center mb10">Resetar configurações</div>
+      <button class="reset" id="reset">Resetar!</button>
+    </div>
+
+  </div>
+
+  <script>
+    const API = "http://192.168.0.180/api/a/lights/1";
+    const $ = id => document.getElementById(id);
+
+    // Salva o HTML original do controle de velocidade do ventilador
+    const ventiladorHTML = $("appContainer").innerHTML;
+    let timerOn = false;
+
+    // --- Requisições API ---
+    function put(url, data) {
+      return fetch(API + url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+    }
+
+    function sendState(isOn, brightness) {
+      put("/state", { on: isOn, bri: brightness }).then(loadState);
+    }
+
+    // --- Interface Visual (UI) ---
+    function setActive(isOn, brightness) {
+      if ($("off") && $("v1") && $("v2") && $("v3")) {
+        $("off").classList.remove("white");
+        $("v1").classList.remove("white");
+        $("v2").classList.remove("white");
+        $("v3").classList.remove("white");
+
+        if (isOn) {
+          if (brightness <= 85) $("v1").classList.add("white");
+          else if (brightness <= 170) $("v2").classList.add("white");
+          else $("v3").classList.add("white");
+        } else {
+          $("off").classList.add("white");
+        }
+      }
+    }
+
+    function loadState() {
+      fetch(API)
+        .then(res => res.json())
+        .then(data => {
+          let state = data.state;
+          
+          if (data.psrtype === "PLUG") {
+            renderPlugLayout(state.on);
+          } else {
+            $("appContainer").innerHTML = ventiladorHTML;
+            setupVentiladorEvents();
+            setActive(state.on, state.bri);
+          }
+          
+          // Atualiza dados globais (independentes do layout ativo)
+          updateTimerLabel(state.minutes, state.timerState);
+          $("startState").checked = state.startState === true || state.startState === "true";
+          $("otaState").checked = state.otaState === true || state.otaState === "true";
+          $("nameText").innerText = data.name;
+          $("uid").innerText = data.uniqueid;
+          $("ver").innerText = data.swversion;
+        });
+    }
+
+    // --- Renderização Dinâmica do Layout PLUG ---
+    function renderPlugLayout(isOn) {
+      const statusClass = isOn ? "on" : "off";
+      
+      $("appContainer").innerHTML = `
+        <div class="card btn-power-container">
+          <button id="plugPowerBtn" class="btn-power ${statusClass}">
+            ⏻
+          </button>
+        </div>
+      `;
+
+      $("plugPowerBtn").onclick = () => {
+        if (isOn) {
+          sendState(false, 0);
+        } else {
+          sendState(true, 255);
+        }
+      };
+    }
+
+    // --- Configuração de Eventos do Ventilador ---
+    function setupVentiladorEvents() {
+      if (!$("off")) return;
+      $("off").onclick = () => sendState(false, 0);
+      $("v1").onclick = () => sendState(true, 1);
+      $("v2").onclick = () => sendState(true, 170);
+      $("v3").onclick = () => sendState(true, 255);
+    }
+
+    // --- Configuração Global dos Eventos do Temporizador ---
+    function setupTimerEvents() {
+      const timerBtn = $("timerState");
+      if (timerBtn) {
+        timerBtn.onclick = () => {
+          timerBtn.classList.add("white");
+          timerOn = true;
+          let curText = timerBtn.innerText;
+          
+          timerBtn.innerText = curText === "OFF" ? 1 : curText == 1 ? 2 : curText == 2 ? 3 : "OFF";
+          
+          if (timerBtn.innerText === "OFF") {
+            timerOn = false;
+            timerBtn.classList.remove("white");
+          }
+        };
+      }
+
+      if ($("tset")) {
+        $("tset").onclick = () => {
+          let h = $("th").value;
+          let m = $("tm").value;
+          if (!h && !m) return;
+
+          let totalMinutes = (+m || 0) + (+h || 0) * 60;
+          let bri = 0;
+
+          // Se estiver no modo ventilador, decide o brilho com base no botão ativo
+          if ($("v1") && $("v1").classList.contains("white")) bri = 1;
+          else if ($("v2") && $("v2").classList.contains("white")) bri = 170;
+          else if ($("v3") && $("v3").classList.contains("white")) bri = 255;
+          // Se estiver no modo Plug, envia o valor máximo por padrão se ligado
+          else if ($("plugPowerBtn") && $("plugPowerBtn").classList.contains("on")) bri = 255;
+
+          put("/timer", { on: timerOn, minutes: totalMinutes, bri: bri });
+          loadState();
+        };
+      }
+    }
+
+    // --- Edição do Nome ---
+    const nameText = $("nameText");
+    const nameInput = $("nameInput");
+    const editBtn = $("editName");
+
+    function saveName() {
+      let val = nameInput.value.trim();
+      nameInput.style.display = "none";
+      nameText.style.display = "inline";
+      editBtn.style.display = "inline";
+      if (val) {
+        nameText.innerText = val;
+        put("/rename", { name: val });
+      }
+    }
+
+    editBtn.onclick = () => {
+      nameInput.value = nameText.innerText;
+      nameText.style.display = "none";
+      editBtn.style.display = "none";
+      nameInput.style.display = "inline";
+      nameInput.focus();
+    };
+
+    nameInput.onblur = saveName;
+    nameInput.onkeydown = e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        nameInput.blur();
+      }
+    };
+
+    function updateTimerLabel(minutes, isTimerActive) {
+      if (!$("timerLabel") || minutes == -1) {
+        if ($("timerLabel")) $("timerLabel").innerText = "";
+        return;
+      }
+      
+      let targetDate = new Date(Date.now() + minutes * 60000);
+      let today = new Date();
+      let msg = "O dispositivo será " + (isTimerActive ? "ligado" : "desligado");
+      
+      if (targetDate.getDate() > today.getDate()) {
+        msg += " em " + targetDate.toLocaleDateString();
+      }
+      
+      $("timerLabel").innerText = msg + " às " + targetDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + ".";
+    }
+
+    // --- Toggles de Configurações ---
+    $("startState").onchange = async function() {
+      let oldState = !this.checked;
+      try {
+        let res = await put("/startState", { state: this.checked });
+        let data = await res.json();
+        if (!data.success) this.checked = oldState;
+      } catch {
+        this.checked = oldState;
+      }
+    };
+
+    $("otaState").onchange = async function() {
+      let oldState = !this.checked;
+      try {
+        let res = await put("/otaState", { state: this.checked });
+        let data = await res.json();
+        if (!data.success) this.checked = oldState;
+      } catch {
+        this.checked = oldState;
+      }
+    };
+
+    // --- Reset de Fábrica ---
+    $("reset").onclick = async function() {
+      if (confirm("Tem certeza que deseja resetar as configurações?")) {
+        try {
+          let res = await put("/reset", { key: "f635g2vg3gn54H$" });
+          let data = await res.json();
+          if (data.success === true) {
+            alert("Dispositivo resetado com sucesso!");
+            window.location.href = "https://www.google.com";
+          } else {
+            alert("Falha ao resetar o dispositivo.");
+          }
+        } catch (err) {
+          alert("Erro ao comunicar com o dispositivo.");
+          console.error(err);
+        }
+      }
+    };
+
+    // Inicialização dos eventos persistentes e busca de dados
+    setupTimerEvents();
+    loadState();
+  </script>
+</body>
+</html>

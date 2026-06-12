@@ -1,0 +1,11 @@
+idf_component_register(
+    SRCS
+        "ssdp.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        esp_netif
+        lwip
+        templates
+        config
+)
