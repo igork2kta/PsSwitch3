@@ -7,4 +7,5 @@ idf_component_register(
         persistent_data
         nvs_flash
         esp_driver_gpio
+        esp_adc
 )

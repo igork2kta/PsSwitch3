@@ -2,6 +2,7 @@
 #include "sdkconfig.h"
 //SE A ALEXA TIVER DE GRACINHA PRA ENCONTRAR O DISPOSITIVO, UTILIZANDO CACHE E NÃO ACHANDO, ALTERAR O UNIQUEID DO /LIGHTS
 
+#define SW_VERSION "3.1.2"
 //Não existe constexpr em C
 #define device_name_max_len 25
 
@@ -9,9 +10,11 @@
 #define DEBUG_WEBSERVER true
 #define DEBUG_SSDP false
 #define DEBUG_WIFI_ false
+#define DEBUG_TEMPERATURE false
 
 #define TOUCH_ENABLED false
 #define SINGLE_INPUT  true 
+#define TEMPERATURE_SENSOR true
 
 #define PIN_LED 2
 
@@ -42,7 +45,7 @@
 #define PLUG 1
 #define VENTILADOR 2
 
-#define DEVICE_TYPE VENTILADOR
+#define DEVICE_TYPE PLUG
 
 #if DEVICE_TYPE == VENTILADOR
   #define PSSWITCH_TYPE "VENTILADOR"
@@ -88,10 +91,35 @@
 #elif DEVICE_TYPE == PLUG
   #define PSSWITCH_TYPE "PLUG"
 
-  #define OUTPUT_PIN_1 5
+  #define OUTPUT_PIN_1 35
 
-  #define PINS_MASK (1 << OUTPUT_PIN_1) //usado para desligar
-  #define ON (1 << OUTPUT_PIN_1)
+  #define GPIO_MASK_LOW  ( \
+      ((OUTPUT_PIN_1 < 32) ? (1UL << OUTPUT_PIN_1) : 0)  \
+  )
+
+  #define GPIO_MASK_HIGH ( \
+      ((OUTPUT_PIN_1 >= 32) ? (1UL << (OUTPUT_PIN_1 - 32)) : 0)  \
+  )
+
+  #define ON (GPIO_MASK_LOW | GPIO_MASK_HIGH)
+#endif
+
+
+#if TEMPERATURE_SENSOR
+
+  #define SENSOR_NTC_10K 1
+  #define SENSOR_TYPE SENSOR_NTC_10K
+  #define MAX_TEMPERATURE 90.0
+
+  #define SENSOR_PIN 34
+  #define TEMPERATURE_LED_PIN 14
+
+    #if SENSOR_TYPE == SENSOR_NTC_10K
+        #define SERIES_RESISTOR 10000.0
+        #define NOMINAL_RESISTANCE 10000.0
+        #define NOMINAL_TEMPERATURE 25.0
+        #define BETA_COEFFICIENT 3950.0
+    #endif
 #endif
 
 

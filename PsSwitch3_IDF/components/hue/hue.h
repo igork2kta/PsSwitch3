@@ -15,7 +15,9 @@ bool get_timer_state(void);
 int get_timer_minutes(void);
 bool get_start_state(void);
 bool get_ota_state(void);
-
+float get_temperature(void);
+uint8_t get_thermal_shutdown_count(void);
+ 
 // Setters
 void set_device_name(const char *name);
 void set_state(bool on, uint8_t value);
@@ -28,3 +30,5 @@ void toggle_state(void);
 void apply_outputs();
 void start_timer(int minutes, bool target_state);
 void stop_light_timer(void);
+void temperature_task(void *pvParameters);
+void temperature_init(void);

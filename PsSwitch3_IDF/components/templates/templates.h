@@ -36,7 +36,11 @@ int template_build_light_long(
     const bool state, 
     const bool timer_state, 
     int minutes,
-    const bool start_state
+    const bool start_state,
+    const bool ota_state,
+    const float temperature,
+    const uint8_t thermal_shutdown_count,
+    const char *sw_version
 );
 
 int template_build_light_state_success(char *out, 

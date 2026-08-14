@@ -1,6 +1,7 @@
 #include "hue.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "esp_system.h"
 #include "esp_mac.h"
@@ -13,24 +14,31 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 #include "persistent_data.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 
-char device_name[device_name_max_len] = "PSR Switch";
-bool state = false;
+
+char    device_name[device_name_max_len] = "PSR Switch";
+bool    state = false;
 uint8_t bri = 1;
-bool timer_state = false;
+bool    timer_state = false;
 uint8_t timer_bri;
 uint8_t timer_bri = 0;
-int minutes = -1;
-bool start_state = false;
-bool ota_state = false;
+int     minutes = -1;
+bool    start_state = false;
+bool    ota_state = false;
+uint8_t thermal_shutdown_count = 0;
 uint32_t gpio_state_low = 0;
 uint32_t gpio_state_high = 0;
+
+
 
 static TimerHandle_t light_timer = NULL;
 
 static const char *TAG = "hue";
-#define NVS_NAMESPACE      "hue"
-#define NVS_KEY_DEVICE     "device_name"
+#define NVS_NAMESPACE    "hue"
+#define NVS_KEY_DEVICE   "device_name"
 
 
 static void output_init(void);
@@ -51,6 +59,24 @@ void init(void)
     start_state = persistent_data_get_start_state();
     set_state(start_state, 10);
 
+    #if TEMPERATURE_SENSOR
+        temperature_init();
+
+        xTaskCreate(
+            temperature_task,
+            "temperature_task",
+            2048,
+            NULL,
+            5,
+            NULL
+        );
+
+        
+
+        gpio_set_direction(TEMPERATURE_LED_PIN, GPIO_MODE_OUTPUT);
+        gpio_set_level(TEMPERATURE_LED_PIN, 0); // inicia desligado
+
+    #endif
 
     #if DEBUG_HUE
         ESP_LOGI(TAG, "[HUE] Device name: %s | Start state: %d",
@@ -110,12 +136,7 @@ void set_device_name(const char *name)
     strncpy(device_name, name, device_name_max_len - 1);
     device_name[device_name_max_len - 1] = '\0';
 
-    nvs_handle_t nvs;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs) == ESP_OK) {
-        nvs_set_str(nvs, NVS_KEY_DEVICE, device_name);
-        nvs_commit(nvs);
-        nvs_close(nvs);
-    }
+    persistent_data_write_name(device_name);
 
     ESP_LOGI(TAG, "Renomeado: %s", device_name);
 }
@@ -170,8 +191,13 @@ void set_state(bool on, uint8_t value)
 
 #elif DEVICE_TYPE == PLUG
 
-    gpio_state = state ? ON : 0;
+    gpio_state_low = state ? ON : 0;
+    gpio_state_high = state ? ON : 0;
 
+#endif
+
+#if TEMPERATURE_SENSOR
+    gpio_set_level(TEMPERATURE_LED_PIN,0);
 #endif
 
     apply_outputs();
@@ -259,6 +285,7 @@ bool get_timer_state(void){return timer_state;}
 int get_timer_minutes(void){return minutes;}
 bool get_start_state(void){return start_state;}
 bool get_ota_state(void){return ota_state;}
+uint8_t get_thermal_shutdown_count(void){return thermal_shutdown_count;}
 
 //============================= TIMER =======================================//
 
@@ -304,9 +331,184 @@ void stop_light_timer(void)
     }
 }
 
+
+
 //============================= END TIMER ===================================//
 
+#if TEMPERATURE_SENSOR
 
+static adc_oneshot_unit_handle_t adc_handle;
+static adc_unit_t adc_unit;
+static adc_channel_t adc_channel;
+
+static adc_cali_handle_t adc_cali_handle = NULL;
+static bool adc_calibrated = false;
+
+void temperature_init(void)
+{
+    ESP_ERROR_CHECK(
+        adc_oneshot_io_to_channel(
+            SENSOR_PIN,
+            &adc_unit,
+            &adc_channel
+        )
+    );
+
+    adc_oneshot_unit_init_cfg_t init_config = {
+        .unit_id = adc_unit,
+    };
+
+    ESP_ERROR_CHECK(
+        adc_oneshot_new_unit(
+            &init_config,
+            &adc_handle
+        )
+    );
+
+    adc_oneshot_chan_cfg_t channel_config = {
+        .bitwidth = ADC_BITWIDTH_12,
+        .atten = ADC_ATTEN_DB_12,
+    };
+
+    ESP_ERROR_CHECK(
+        adc_oneshot_config_channel(
+            adc_handle,
+            adc_channel,
+            &channel_config
+        )
+    );
+
+#if CONFIG_IDF_TARGET_ESP32
+
+    adc_cali_line_fitting_config_t cali_config = {
+        .unit_id = adc_unit,
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+
+    if (adc_cali_create_scheme_line_fitting(
+            &cali_config,
+            &adc_cali_handle) == ESP_OK)
+    {
+        adc_calibrated = true;
+    }
+
+#elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3
+
+    adc_cali_curve_fitting_config_t cali_config = {
+        .unit_id = adc_unit,
+        .chan = adc_channel,
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+
+    if (adc_cali_create_scheme_curve_fitting(
+            &cali_config,
+            &adc_cali_handle) == ESP_OK)
+    {
+        adc_calibrated = true;
+    }
+
+#endif
+}
+
+void temperature_task(void *pvParameters)
+{
+    while (1)
+    {
+        float temperature = get_temperature();
+
+        #if DEBUG_TEMPERATURE
+            ESP_LOGI(TAG, "Temperature: %.2f°C", temperature);
+        #endif
+
+        if (temperature > MAX_TEMPERATURE)
+        {
+            ESP_LOGW(TAG, "Temperature exceeded limit: %.2f°C. Turning off the device.", temperature);
+            set_state(false, 0);
+            gpio_set_level(TEMPERATURE_LED_PIN, 1);
+            thermal_shutdown_count++;
+        }
+        
+
+        vTaskDelay(pdMS_TO_TICKS(5000)); // verifica a cada 5 segundos
+    }
+}
+
+
+
+    #if SENSOR_TYPE == SENSOR_NTC_10K
+        float get_temperature(void)
+        {
+            int64_t sum = 0;
+
+            for (int i = 0; i < 16; i++)
+            {
+                int adc_raw;
+
+                ESP_ERROR_CHECK(
+                    adc_oneshot_read(
+                        adc_handle,
+                        adc_channel,
+                        &adc_raw
+                    )
+                );
+
+                sum += adc_raw;
+
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+
+            int adc_average = (int)(sum / 16);
+
+            if (adc_average <= 0)
+                return -999.0f;
+
+            int voltage_mv;
+
+            if (adc_calibrated)
+            {
+                ESP_ERROR_CHECK(
+                    adc_cali_raw_to_voltage(
+                        adc_cali_handle,
+                        adc_average,
+                        &voltage_mv
+                    )
+                );
+            }
+            else
+            {
+                voltage_mv = (adc_average * 3300) / 4095;
+            }
+
+            float voltage = voltage_mv / 1000.0f;         
+
+            if (voltage <= 0.0f || voltage >= 3.3f)
+                return -999.0f;
+
+            float resistance =
+                SERIES_RESISTOR *
+                (voltage / (3.3f - voltage));
+
+            float steinhart;
+
+            steinhart = resistance / NOMINAL_RESISTANCE;
+            steinhart = logf(steinhart);
+            steinhart /= BETA_COEFFICIENT;
+            steinhart +=
+                1.0f /
+                (NOMINAL_TEMPERATURE + 273.15f);
+
+            steinhart = 1.0f / steinhart;
+            steinhart -= 273.15f;
+
+            return steinhart;
+        }
+    #endif
+
+#else
+    float get_temperature(void) return -1; // Retorna um valor inválido se o sensor não estiver habilitado
+#endif
 
 
 

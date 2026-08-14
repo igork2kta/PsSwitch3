@@ -337,7 +337,7 @@ static esp_err_t lights_get_handler(httpd_req_t *req)
         const char *id = lights + 8; // aponta para o "1"
         ESP_LOGI(TAG, "Requisição para light ID: %s", id);
 
-        char response[700];
+        char response[850];
 
         int len =   template_build_light_long(
             response,
@@ -349,7 +349,11 @@ static esp_err_t lights_get_handler(httpd_req_t *req)
             get_state(),
             get_timer_state(),
             get_timer_minutes(),
-            get_start_state()
+            get_start_state(),
+            get_ota_state(),
+            get_temperature(),
+            get_thermal_shutdown_count(),
+            SW_VERSION
         );
 
         httpd_resp_set_type(req, "application/json");
@@ -432,10 +436,12 @@ static esp_err_t start_state_ota_put_handler(httpd_req_t *req)
 
     if (strstr(req->uri, "/startState")) {
         set_start_state(state);
+        ESP_LOGI(TAG, "START_STATE=%d", state);
     }
 
     else if (strstr(req->uri, "/otaState")) {
         set_ota_state(state);
+        ESP_LOGI(TAG, "OTA=%d", state);
     }
 
     char resp[25];
@@ -444,7 +450,7 @@ static esp_err_t start_state_ota_put_handler(httpd_req_t *req)
             "Sucesso!"
         );
 
-    ESP_LOGI(TAG, "START_STATE=%d", state);
+    
 
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, resp, len);
@@ -512,6 +518,7 @@ static esp_err_t rename_put_handler(httpd_req_t *req)
 
 }
 
+
 void reset(void)
 {
     ESP_LOGI("RESET", "Limpando WiFi e reiniciando...");
@@ -519,16 +526,18 @@ void reset(void)
     // Para o Wi-Fi
     esp_wifi_stop();
 
-    // Apaga SSID/senha salvos na NVS
-    //esp_wifi_restore();
-    //apaga a NFS completa
-    nvs_flash_erase();
+    ESP_ERROR_CHECK(nvs_flash_deinit());
+
+    esp_err_t err = nvs_flash_erase();
+    ESP_LOGI(TAG, "nvs_flash_erase = %s", esp_err_to_name(err));
+
+    ESP_ERROR_CHECK(err);
+
+    err = nvs_flash_init();
+    ESP_LOGI(TAG, "nvs_flash_init = %s", esp_err_to_name(err));
+
+    ESP_ERROR_CHECK(err);
     
-    set_device_name("PS Switch");
-
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // Reinicia o ESP
     esp_restart();
 }
 
@@ -551,9 +560,7 @@ static esp_err_t reset_put_handler(httpd_req_t *req)
 
         httpd_resp_send(req, response, len);
         
-        //espera a conexão fechar antes de resetar, para evitar erros no cliente
-        httpd_sess_trigger_close(req->handle, httpd_req_to_sockfd(req));
-        vTaskDelay(pdMS_TO_TICKS(200));
+        vTaskDelay(pdMS_TO_TICKS(3000));
 
         reset();
 
@@ -569,9 +576,6 @@ static esp_err_t reset_put_handler(httpd_req_t *req)
         return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, response);
     }
         
-        
-    
-
 }
 
 

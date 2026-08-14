@@ -4,7 +4,7 @@ import pytest
 # pytest test_esp8266.py
 
 # Substitua pelo IP real do seu ESP8266 na rede
-ESP_IP = "192.168.0.126" 
+ESP_IP = "192.168.0.121" 
 BASE_URL = f"http://{ESP_IP}"
 
 def test_root_page():

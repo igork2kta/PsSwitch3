@@ -1,7 +1,6 @@
 #include "templates.h"
 #include <stdio.h>
 
-
 #define SSDP_RESPONSE \
     "HTTP/1.1 200 OK\r\n" \
     "EXT:\r\n" \
@@ -72,6 +71,9 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     "    \"timerState\": %s,\n" \
     "    \"minutes\": %d,\n" \
     "    \"startState\": %s,\n" \
+    "    \"otaState\": %s,\n" \
+    "    \"temperature\": %.1f,\n" \
+    "    \"thermalShutdownCount\": %u,\n" \
     "    \"xy\": [0, 0],\n" \
     "    \"hue\": 0,\n" \
     "    \"sat\": 0,\n" \
@@ -88,11 +90,11 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     "      \"proxy\": false\n" \
     "    }\n" \
     "  },\n" \
-    "  \"swversion\": \"2.4.0\"\n" \
+    "  \"swversion\": \"%s\"\n" \
     "}"
 
 int template_build_light_long(char *out, size_t out_len, const char *name, const char *type, const char *unique_id, 
-            const uint8_t bri, const bool state, const bool timer_state, int minutes, const bool start_state){
+            const uint8_t bri, const bool state, const bool timer_state, int minutes, const bool start_state, const bool ota_state,  const float temperature, const uint8_t thermal_shutdown_count, const char *sw_version){
     return snprintf(out, out_len, LIGHT_TEMPLATE_LONG, 
         type, 
         name, 
@@ -101,7 +103,11 @@ int template_build_light_long(char *out, size_t out_len, const char *name, const
         (unsigned int)(bri), 
         (timer_state) ? "true" : "false", 
         minutes,
-        (start_state) ? "true" : "false"
+        (start_state) ? "true" : "false",
+        (start_state) ? "true" : "false",
+        temperature,
+        thermal_shutdown_count,
+        sw_version
     );
 }
 

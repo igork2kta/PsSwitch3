@@ -78,6 +78,11 @@
       font-size: 14px;
     }
 
+    .red-text {
+      color: #ff5555;
+      font-weight: bold;
+    }
+
     /* --- Botões e Inputs --- */
     .btn, input {
       color: #fff;
@@ -216,7 +221,7 @@
       </div>
     </div>
 
-    <!-- Card do Temporizador (Agora fixo e global para ambos os modos) -->
+    <!-- Card do Temporizador -->
     <div class="card">
       <div class="center">⏱ Configurar Temporizador</div>
       <div class="flex jc g10 mt15">
@@ -245,6 +250,19 @@
           <span class="slider"></span>
         </label>
       </div>
+      
+      <!-- Linha para exibição da temperatura -->
+      <div class="line" id="tempLine" style="display: none;">
+        <span>Temperatura</span>
+        <span id="tempVal"></span>
+      </div>
+
+      <!-- Linha de alerta em vermelho para desligamentos por alta temperatura -->
+      <div class="line red-text" id="shutdownLine" style="display: none;">
+        <span>Desligamentos por temp. alta</span>
+        <span id="shutdownCountVal"></span>
+      </div>
+
       <div class="line">Unique ID: <span id="uid"></span></div>
       <div class="line">Versão do software: <span id="ver"></span></div>
     </div>
@@ -258,7 +276,7 @@
   </div>
 
   <script>
-    const API = "http://192.168.0.180/api/a/lights/1";
+    const API = "/api/a/lights/1";
     const $ = id => document.getElementById(id);
 
     // Salva o HTML original do controle de velocidade do ventilador
@@ -310,13 +328,40 @@
             setActive(state.on, state.bri);
           }
           
-          // Atualiza dados globais (independentes do layout ativo)
+          // Atualiza dados globais
           updateTimerLabel(state.minutes, state.timerState);
           $("startState").checked = state.startState === true || state.startState === "true";
           $("otaState").checked = state.otaState === true || state.otaState === "true";
           $("nameText").innerText = data.name;
           $("uid").innerText = data.uniqueid;
           $("ver").innerText = data.swversion;
+
+          // --- Tratamento do campo temperature ---
+          let temp = state.temperature !== undefined ? state.temperature : data.temperature;
+          let tempLine = $("tempLine");
+          let tempVal = $("tempVal");
+
+          if (temp === -999) {
+            tempLine.style.display = "flex";
+            tempVal.innerText = "erro de leitura";
+          } else if (temp !== undefined && temp !== -1) {
+            tempLine.style.display = "flex";
+            tempVal.innerText = temp + " °C";
+          } else {
+            tempLine.style.display = "none";
+          }
+
+          // --- Tratamento do campo thermalShutdownCount ---
+          let shutdownCount = state.thermalShutdownCount !== undefined ? state.thermalShutdownCount : data.thermalShutdownCount;
+          let shutdownLine = $("shutdownLine");
+          let shutdownCountVal = $("shutdownCountVal");
+
+          if (shutdownCount && shutdownCount > 0) {
+            shutdownLine.style.display = "flex";
+            shutdownCountVal.innerText = shutdownCount;
+          } else {
+            shutdownLine.style.display = "none";
+          }
         });
     }
 
@@ -377,11 +422,9 @@
           let totalMinutes = (+m || 0) + (+h || 0) * 60;
           let bri = 0;
 
-          // Se estiver no modo ventilador, decide o brilho com base no botão ativo
           if ($("v1") && $("v1").classList.contains("white")) bri = 1;
           else if ($("v2") && $("v2").classList.contains("white")) bri = 170;
           else if ($("v3") && $("v3").classList.contains("white")) bri = 255;
-          // Se estiver no modo Plug, envia o valor máximo por padrão se ligado
           else if ($("plugPowerBtn") && $("plugPowerBtn").classList.contains("on")) bri = 255;
 
           put("/timer", { on: timerOn, minutes: totalMinutes, bri: bri });
@@ -445,7 +488,7 @@
       try {
         let res = await put("/startState", { state: this.checked });
         let data = await res.json();
-        if (!data.success) this.checked = oldState;
+        if (!res.ok || data.message !== "Sucesso!") this.checked = oldState;
       } catch {
         this.checked = oldState;
       }
@@ -456,7 +499,7 @@
       try {
         let res = await put("/otaState", { state: this.checked });
         let data = await res.json();
-        if (!data.success) this.checked = oldState;
+        if (!res.ok || data.message !== "Sucesso!") this.checked = oldState;
       } catch {
         this.checked = oldState;
       }
@@ -468,7 +511,7 @@
         try {
           let res = await put("/reset", { key: "f635g2vg3gn54H$" });
           let data = await res.json();
-          if (data.success === true) {
+          if (data.message === "Sucesso!") {
             alert("Dispositivo resetado com sucesso!");
             window.location.href = "https://www.google.com";
           } else {
@@ -481,7 +524,7 @@
       }
     };
 
-    // Inicialização dos eventos persistentes e busca de dados
+    // Inicialização
     setupTimerEvents();
     loadState();
   </script>

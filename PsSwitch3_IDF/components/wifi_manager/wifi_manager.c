@@ -17,7 +17,7 @@ static wifi_connected_cb_t connected_cb = NULL;
 static bool wifi_connected = false;
 static bool ap_running = false;
 static bool scan_in_progress = false;
-/* ===== AP ===== */
+static bool connect_in_progress = false;
 
 bool get_scan_in_progress(void)
 {
@@ -39,16 +39,14 @@ static void start_ap_mode(void)
             .ssid = "ESP32-SETUP",
             .password = "12345678",
             .ssid_len = 0,
-            .channel = 1,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .channel = 11,
+            .authmode = WIFI_AUTH_WPA2_PSK,
             .max_connection = 4,
             .beacon_interval = 100
         }
     };
 
-    ESP_ERROR_CHECK(
-        esp_wifi_set_config(WIFI_IF_AP, &ap)
-    );
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
 
     ap_running = true;
 
@@ -62,28 +60,19 @@ static void stop_ap_mode(void)
 
     ESP_LOGI(TAG, "Desabilitando AP");
 
-    /*
-     * Mantém o WiFi ativo apenas em STA.
-     * O AP deixa de existir.
-     */
-    ESP_ERROR_CHECK(
-        esp_wifi_set_mode(WIFI_MODE_STA)
-    );
+    // Mantém o WiFi ativo apenas em STA.
+    // O AP deixa de existir.
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
     ap_running = false;
 }
 
 /* ===== Eventos ===== */
 
-static void wifi_event_handler(void* arg,
-                               esp_event_base_t event_base,
-                               int32_t event_id,
-                               void* event_data)
+static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
     if (event_base == WIFI_EVENT)
     {
-        
-
         switch (event_id)
         {
             case WIFI_EVENT_STA_START:
@@ -99,14 +88,19 @@ static void wifi_event_handler(void* arg,
 
                 wifi_connected = false;
 
-                /*
-                 * Reabre AP para permitir reconfiguração.
-                 */
+                 //Reabre AP para permitir reconfiguração.
+
                 if (!ap_running)
                 {
-                    ESP_ERROR_CHECK(
-                        esp_wifi_set_mode(WIFI_MODE_APSTA)
-                    );
+                    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_APSTA);
+
+                    if (err == ESP_ERR_WIFI_STOP_STATE)
+                    {
+                        ESP_LOGI(TAG, "WiFi está sendo parado, ignorando evento.");
+                        return;
+                    }
+
+                    ESP_ERROR_CHECK(err);
 
                     start_ap_mode();
                 }
@@ -209,6 +203,7 @@ esp_err_t wifi_manager_init(wifi_connected_cb_t cb)
 esp_err_t wifi_manager_save_and_connect(const char *ssid,
                                         const char *pass)
 {
+    connect_in_progress = true;
     esp_wifi_disconnect();
     
     wifi_config_t sta = {0};
@@ -237,9 +232,13 @@ esp_err_t wifi_manager_save_and_connect(const char *ssid,
 
     start_ap_mode();
 
+    
     ESP_ERROR_CHECK(
         esp_wifi_connect()
     );
+    
+    
+    connect_in_progress = false;
 
     return ESP_OK;
 }
