@@ -2,7 +2,7 @@ import re
 import time
 import requests
 
-ESP_IP = "192.168.0.121"
+ESP_IP = "192.168.0.210"
 
 FIRMWARE_PATH = "build/PsSwitch3.bin"
 GLOBAL_H_PATH = "components/config/Global.h"
@@ -50,7 +50,7 @@ if response.status_code != 200:
     exit(1)
 
 print("\nAguardando o ESP reiniciar...")
-time.sleep(5)
+time.sleep(10)
 
 print(f"Consultando {VERSION_URL}")
 

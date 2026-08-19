@@ -8,7 +8,6 @@ static const char *TAG = "OTA";
 
 esp_err_t ota_put_handler(httpd_req_t *req)
 {
-
     if (!get_ota_state()) {
         ESP_LOGE(TAG, "OTA não habilitada");
         httpd_resp_send_err(
@@ -16,8 +15,8 @@ esp_err_t ota_put_handler(httpd_req_t *req)
             HTTPD_403_FORBIDDEN,
             "OTA não habilitada"
         );
+        return ESP_FAIL; // <-- CORREÇÃO: Faltava este return!
     }
-
 
     esp_ota_handle_t ota_handle;
 
@@ -25,19 +24,16 @@ esp_err_t ota_put_handler(httpd_req_t *req)
         esp_ota_get_next_update_partition(NULL);
 
     if (ota_partition == NULL) {
-
         ESP_LOGE(TAG, "Sem particao OTA");
-
         httpd_resp_send_err(
             req,
             HTTPD_500_INTERNAL_SERVER_ERROR,
             "No OTA partition"
         );
-
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Iniciando OTA");
+    ESP_LOGI(TAG, "Iniciando OTA na particao: %s", ota_partition->label);
 
     esp_err_t err = esp_ota_begin(
         ota_partition,
@@ -46,68 +42,52 @@ esp_err_t ota_put_handler(httpd_req_t *req)
     );
 
     if (err != ESP_OK) {
-
-        ESP_LOGE(TAG, "esp_ota_begin falhou");
-
+        ESP_LOGE(TAG, "esp_ota_begin falhou (0x%x)", err);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA Begin Failed");
         return ESP_FAIL;
     }
 
     char buf[1024];
     int received;
 
-    while ((received = httpd_req_recv(
-                req,
-                buf,
-                sizeof(buf))) > 0) {
-
-        err = esp_ota_write(
-            ota_handle,
-            buf,
-            received
-        );
-
+    while ((received = httpd_req_recv(req, buf, sizeof(buf))) > 0) {
+        err = esp_ota_write(ota_handle, buf, received);
         if (err != ESP_OK) {
-
             ESP_LOGE(TAG, "esp_ota_write falhou");
-
-            esp_ota_end(ota_handle);
-
+            esp_ota_abort(ota_handle);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Write Failed");
             return ESP_FAIL;
         }
-
-        ESP_LOGI(TAG, "Recebido: %d bytes", received);
+        
+        // Ceda tempo para a Task do sistema/Watchdog não estourar
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     if (received < 0) {
-
-        ESP_LOGE(TAG, "Erro recebendo firmware");
-
-        esp_ota_end(ota_handle);
-
+        if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+            ESP_LOGE(TAG, "Timeout ao receber dados");
+        } else {
+            ESP_LOGE(TAG, "Erro recebendo firmware: %d", received);
+        }
+        esp_ota_abort(ota_handle);
         return ESP_FAIL;
     }
 
     err = esp_ota_end(ota_handle);
-
     if (err != ESP_OK) {
-
-        ESP_LOGE(TAG, "esp_ota_end falhou");
-
+        ESP_LOGE(TAG, "esp_ota_end falhou (0x%x)", err);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA End Failed");
         return ESP_FAIL;
     }
 
-    err = esp_ota_set_boot_partition(
-        ota_partition
-    );
-
+    err = esp_ota_set_boot_partition(ota_partition);
     if (err != ESP_OK) {
-
-        ESP_LOGE(TAG, "esp_ota_set_boot_partition falhou");
-
+        ESP_LOGE(TAG, "esp_ota_set_boot_partition falhou (0x%x)", err);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Set Boot Failed");
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "OTA concluido");
+    ESP_LOGI(TAG, "OTA concluido com sucesso!");
 
     httpd_resp_sendstr(req, "OK");
 

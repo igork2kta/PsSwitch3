@@ -488,7 +488,36 @@ void temperature_task(void *pvParameters)
 
             float resistance =
                 SERIES_RESISTOR *
+                ((3.3f - voltage) / voltage);
+                /*
+                3.3V
+                │
+                [NTC 10K]
+                │
+                ├──── GPIO34
+                │
+                [10K resistor]
+                │
+                GND
+                */
+
+
+/*
+            float resistance =
+                SERIES_RESISTOR *
                 (voltage / (3.3f - voltage));
+
+                3.3V
+                │
+                [10K resistor]
+                │
+                ├──── GPIO34
+                │
+                [NTC 10K]
+                │
+                GND
+
+*/
 
             float steinhart;
 

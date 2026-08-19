@@ -353,6 +353,8 @@ static esp_err_t lights_get_handler(httpd_req_t *req)
             get_ota_state(),
             get_temperature(),
             get_thermal_shutdown_count(),
+            wifi_manager_get_ssid(),
+            wifi_manager_get_rssi(),
             SW_VERSION
         );
 

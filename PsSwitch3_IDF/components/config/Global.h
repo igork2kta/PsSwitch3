@@ -2,61 +2,69 @@
 #include "sdkconfig.h"
 //SE A ALEXA TIVER DE GRACINHA PRA ENCONTRAR O DISPOSITIVO, UTILIZANDO CACHE E NÃO ACHANDO, ALTERAR O UNIQUEID DO /LIGHTS
 
-#define SW_VERSION "3.1.2"
+#define SW_VERSION "3.1.3"
 //Não existe constexpr em C
 #define device_name_max_len 25
 
-#define DEBUG_HUE true
-#define DEBUG_WEBSERVER true
+#define DEBUG_HUE false
+#define DEBUG_WEBSERVER false
 #define DEBUG_SSDP false
 #define DEBUG_WIFI_ false
 #define DEBUG_TEMPERATURE false
 
-#define TOUCH_ENABLED false
-#define SINGLE_INPUT  true 
+#define TOUCH_ENABLED true
+#define SINGLE_INPUT  false 
 #define TEMPERATURE_SENSOR true
 
 #define PIN_LED 2
 
 #if TOUCH_ENABLED 
-    #if CONFIG_IDF_TARGET_ESP32
-
-        // ESP32 clássico
+    
+    #if CONFIG_IDF_TARGET_ESP32 // ESP32 clássico
+            
         #define INPUT_PIN       TOUCH_PAD_NUM0   // GPIO4
-
+            
         #if SINGLE_INPUT == false
-          #define INPUT_PIN2      TOUCH_PAD_NUM4   // GPIO13
-          #define INPUT_PIN3      TOUCH_PAD_NUM3   // GPIO15
-          #define INPUT_PIN4      TOUCH_PAD_NUM9   // GPIO32
+
+            #define INPUT_PIN2      TOUCH_PAD_NUM4   // GPIO13
+            #define INPUT_PIN3      TOUCH_PAD_NUM3   // GPIO15
+            #define INPUT_PIN4      TOUCH_PAD_NUM9   // GPIO32
         #endif
+
     #elif CONFIG_IDF_TARGET_ESP32S3
 
         #define INPUT_PIN       4
-        #define INPUT_PIN2      5
-        #define INPUT_PIN3      6
-        #define INPUT_PIN4      7
+
+        #if SINGLE_INPUT == false
+            #define INPUT_PIN2      5
+            #define INPUT_PIN3      6
+            #define INPUT_PIN4      7
+        #endif
       #endif
 
 #else
-    #define INPUT_PIN 13
+    //Ativo em LOW
+    #define INPUT_PIN 13  
 #endif
 
 
 #define PLUG 1
 #define VENTILADOR 2
 
-#define DEVICE_TYPE PLUG
+#define DEVICE_TYPE VENTILADOR
 
 #if DEVICE_TYPE == VENTILADOR
   #define PSSWITCH_TYPE "VENTILADOR"
 
   //ventilador
-  //#define OUTPUT_PIN_1 26
-  //#define OUTPUT_PIN_2 25
-  //#define OUTPUT_PIN_3 33
-  #define OUTPUT_PIN_1 35
-  #define OUTPUT_PIN_2 36
-  #define OUTPUT_PIN_3 37
+  #define OUTPUT_PIN_1 26
+  #define OUTPUT_PIN_2 25
+  #define OUTPUT_PIN_3 33
+
+  //s3
+  //#define OUTPUT_PIN_1 35
+  //#define OUTPUT_PIN_2 36
+  //#define OUTPUT_PIN_3 37
 //Banco Baixo (Low): Controla os pinos de 0 a 31.
 //Banco Alto (High): Controla os pinos de 32 para cima (32 a 39).
 //Esses são usados para desligar
@@ -109,9 +117,11 @@
 
   #define SENSOR_NTC_10K 1
   #define SENSOR_TYPE SENSOR_NTC_10K
-  #define MAX_TEMPERATURE 90.0
+  #define MAX_TEMPERATURE 80.0
 
+  //Ventilador
   #define SENSOR_PIN 34
+  //#define SENSOR_PIN 4
   #define TEMPERATURE_LED_PIN 14
 
     #if SENSOR_TYPE == SENSOR_NTC_10K

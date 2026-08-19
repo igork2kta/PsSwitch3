@@ -40,6 +40,8 @@ int template_build_light_long(
     const bool ota_state,
     const float temperature,
     const uint8_t thermal_shutdown_count,
+    const char *wifi_ssid,
+    const int8_t wifi_signal,
     const char *sw_version
 );
 

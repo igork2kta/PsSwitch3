@@ -74,8 +74,8 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     "    \"otaState\": %s,\n" \
     "    \"temperature\": %.1f,\n" \
     "    \"thermalShutdownCount\": %u,\n" \
-    "    \"xy\": [0, 0],\n" \
-    "    \"hue\": 0,\n" \
+    "    \"wifiSsid\": \"%s\",\n" \
+    "    \"wifiSignal\": %d,\n" \
     "    \"sat\": 0,\n" \
     "    \"effect\": \"none\",\n" \
     "    \"colormode\": \"xy\",\n" \
@@ -93,8 +93,8 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     "  \"swversion\": \"%s\"\n" \
     "}"
 
-int template_build_light_long(char *out, size_t out_len, const char *name, const char *type, const char *unique_id, 
-            const uint8_t bri, const bool state, const bool timer_state, int minutes, const bool start_state, const bool ota_state,  const float temperature, const uint8_t thermal_shutdown_count, const char *sw_version){
+int template_build_light_long(char *out, size_t out_len, const char *name, const char *type, const char *unique_id, const uint8_t bri, const bool state, const bool timer_state, int minutes, 
+                                const bool start_state, const bool ota_state,  const float temperature, const uint8_t thermal_shutdown_count, const char *wifi_ssid, const int8_t wifi_signal, const char *sw_version){
     return snprintf(out, out_len, LIGHT_TEMPLATE_LONG, 
         type, 
         name, 
@@ -104,9 +104,11 @@ int template_build_light_long(char *out, size_t out_len, const char *name, const
         (timer_state) ? "true" : "false", 
         minutes,
         (start_state) ? "true" : "false",
-        (start_state) ? "true" : "false",
+        (ota_state) ? "true" : "false",
         temperature,
         thermal_shutdown_count,
+        wifi_ssid,
+        wifi_signal,
         sw_version
     );
 }

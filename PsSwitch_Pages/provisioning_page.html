@@ -1,1 +1,71 @@
-<!doctype html><html lang=pt-BR><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Provisionamento Wi-Fi</title><style>body,input,select{background:#0f2b36}body{margin:0;font-family:Arial;color:#d5e6ee;display:flex;flex-direction:column;align-items:center}.card{background:#113f50;margin:12px;padding:16px;border-radius:8px;width:90%;max-width:420px}.title{text-align:center;font-size:22px;margin-bottom:12px}label{font-size:14px}input,select{width:100%;padding:10px;margin-top:8px;margin-bottom:12px;font-size:16px;border-radius:8px;border:1px solid #4b6a78;color:#fff;box-sizing:border-box}button{width:100%;padding:12px;margin-top:10px;background:#1a6f97;color:#fff;font-size:16px;border:none;border-radius:8px;cursor:pointer}.show-pass{display:flex;align-items:center;gap:8px;margin-top:4px}.show-pass input{width:auto;margin:0}</style><body onload=scan()><div class=card><div class=title>Provisionamento Wi-Fi</div><label>Rede Wi-Fi</label><select id=ssid></select><label>Senha</label><input id=pass type=password><div class=show-pass><input id=showPass type=checkbox onclick=togglePass(this)><label for=showPass>Mostrar senha</label></div><button onclick=save()>Salvar</button><button onclick=scan()>Buscar redes</button><button onclick="location.href='/interface'" style=margin-top:24px>Abrir interface web</button></div><script>function scan(){fetch("/scan").then(r=>r.json()).then(l=>{let s=document.getElementById("ssid");s.innerHTML="";l.sort((a,b)=>b.rssi-a.rssi);for(let i=0;i<l.length;i++){let n=l[i],o=document.createElement("option");o.value=n.ssid;o.text=n.ssid+" ("+n.rssi+" dBm)";s.appendChild(o)}})}function togglePass(e){document.getElementById("pass").type=e.checked?"text":"password"}function save(){let s=document.getElementById("ssid").value,p=document.getElementById("pass").value;fetch("/save",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"ssid="+encodeURIComponent(s)+"&pass="+encodeURIComponent(p)}).then(()=>alert("Credenciais enviadas"))}window.addEventListener("load",scan)</script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Provisionamento Wi-Fi</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font:16px Arial,sans-serif;background:#0f2b36;color:#d5e6ee;display:flex;flex-direction:column;align-items:center}
+  .card{background:#113f50;margin:12px;padding:16px;border-radius:8px;width:90%;max-width:420px}
+  h2{text-align:center;font-size:22px;margin:0 0 12px;color:#fff}
+  label{font-size:14px}
+  input,select,button{width:100%;padding:10px;margin:8px 0 12px;font-size:16px;border-radius:8px;border:1px solid #4b6a78;background:#0f2b36;color:#fff}
+  button{padding:12px;margin:10px 0 0;background:#1a6f97;border:none;cursor:pointer}
+  .show-pass{display:flex;align-items:center;gap:8px}
+  .show-pass input{width:auto;margin:0}
+</style>
+
+<div class="card">
+  <h2>Provisionamento Wi-Fi</h2>
+  <label>Rede Wi-Fi
+    <select id="ssid"></select>
+  </label>
+  
+  <label>Senha
+    <input id="pass" type="password">
+  </label>
+  
+  <div class="show-pass">
+    <input id="showPass" type="checkbox" onclick="g('pass').type=this.checked?'text':'password'">
+    <label for="showPass">Mostrar senha</label>
+  </div>
+  
+  <button onclick="save()">Salvar</button>
+  <button onclick="scan()">Buscar redes</button>
+  <button onclick="location.href='/interface'" style="margin-top:24px">Abrir interface web</button>
+</div>
+
+<script>
+  let g=i=>document.getElementById(i), savedSsid="";
+
+  const getSignal = r => r>=-50 ? "🟢 Ótimo" : r>=-60 ? "🟢 Bom" : r>=-70 ? "🟡 Razoável" : r>=-80 ? "🟠 Fraco" : "🔴 Muito fraco";
+
+  async function loadState() {
+    try {
+      let d = await (await fetch("/api/a/lights/1")).json();
+      savedSsid = d.state?.wifiSsid || "";
+    } catch {}
+  }
+
+  async function scan() {
+    let s = g("ssid");
+    try {
+      let list = await (await fetch("/scan")).json();
+      s.innerHTML = list.sort((a,b)=>b.rssi-a.rssi).map(n => `<option value="${n.ssid}">${n.ssid} (${getSignal(n.rssi)} ${n.rssi} dBm)`).join("");
+    } catch {}
+
+    if (savedSsid && s) {
+      s.value = savedSsid;
+      if (s.value !== savedSsid) {
+        s.options.add(new Option(`${savedSsid} (Rede Salva)(Não encontrada)`, savedSsid, true, true));
+      }
+    }
+  }
+
+  function save() {
+    fetch("/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `ssid=${encodeURIComponent(g("ssid").value)}&pass=${encodeURIComponent(g("pass").value)}`
+    }).then(() => alert("Credenciais enviadas"));
+  }
+
+  (async () => { await loadState(); await scan(); })();
+</script>

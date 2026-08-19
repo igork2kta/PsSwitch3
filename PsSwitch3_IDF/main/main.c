@@ -9,11 +9,6 @@
 #include "buttons_handler.h"
 #include "ota_manager.h"
 
-static void on_wifi_connected(void)
-{
-    ESP_LOGI("MAIN", "Wi-Fi conectado!");
-    // aqui você pode parar o portal ou subir outra API
-}
 
 void app_main(void)
 {
@@ -24,7 +19,7 @@ void app_main(void)
     //hue
     init();
 
-    wifi_manager_init(on_wifi_connected);
+    wifi_manager_init(get_device_name());
     start_webserver();
 
     ESP_LOGI("MAIN", "Aplicação iniciada!");

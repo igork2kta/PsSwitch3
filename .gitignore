@@ -76,5 +76,7 @@ Desktop.ini
 *.sln.docstates # Visual Studio
 
 .vscode/
+*.code-workspace
 .devcontainer
 .opencode/
+node_modules

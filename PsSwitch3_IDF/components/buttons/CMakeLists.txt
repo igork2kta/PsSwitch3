@@ -11,4 +11,5 @@ idf_component_register(
         esp_timer
         config
         driver
+        esp_driver_touch_sens
 )
