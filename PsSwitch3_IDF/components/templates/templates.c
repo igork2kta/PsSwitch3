@@ -1,5 +1,6 @@
 #include "templates.h"
 #include <stdio.h>
+#include "Global.h"
 
 #define SSDP_RESPONSE \
     "HTTP/1.1 200 OK\r\n" \
@@ -57,6 +58,14 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     return snprintf(out, out_len, LIGHTS_TEMPLATE_SHORT, type, name, unique_id);
 }
 
+#if TEMPERATURE_SENSOR
+#define LIGHT_TEMPLATE_LONG_TEMP \
+    "    \"temperature\": %.1f,\n" \
+    "    \"thermalShutdownCount\": %u,\n"
+#else
+#define LIGHT_TEMPLATE_LONG_TEMP ""
+#endif
+
 #define LIGHT_TEMPLATE_LONG "{\n" \
     "  \"type\": \"Extended color light\",\n" \
     "  \"psrtype\": \"%s\",\n" \
@@ -72,8 +81,7 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     "    \"minutes\": %d,\n" \
     "    \"startState\": %s,\n" \
     "    \"otaState\": %s,\n" \
-    "    \"temperature\": %.1f,\n" \
-    "    \"thermalShutdownCount\": %u,\n" \
+LIGHT_TEMPLATE_LONG_TEMP \
     "    \"wifiSsid\": \"%s\",\n" \
     "    \"wifiSignal\": %d,\n" \
     "    \"sat\": 0,\n" \
@@ -94,23 +102,44 @@ int template_build_lights_short(char *out, size_t out_len, const char *name, con
     "}"
 
 int template_build_light_long(char *out, size_t out_len, const char *name, const char *type, const char *unique_id, const uint8_t bri, const bool state, const bool timer_state, int minutes, 
-                                const bool start_state, const bool ota_state,  const float temperature, const uint8_t thermal_shutdown_count, const char *wifi_ssid, const int8_t wifi_signal, const char *sw_version){
-    return snprintf(out, out_len, LIGHT_TEMPLATE_LONG, 
-        type, 
-        name, 
-        unique_id, 
-        (state) ? "true" : "false", 
-        (unsigned int)(bri), 
-        (timer_state) ? "true" : "false", 
-        minutes,
-        (start_state) ? "true" : "false",
-        (ota_state) ? "true" : "false",
-        temperature,
-        thermal_shutdown_count,
-        wifi_ssid,
-        wifi_signal,
-        sw_version
-    );
+            const bool start_state, const bool ota_state,  const float temperature, const uint8_t thermal_shutdown_count, const char *wifi_ssid, const int8_t wifi_signal, const char *sw_version){
+    
+    #if TEMPERATURE_SENSOR
+        return snprintf(out, out_len, LIGHT_TEMPLATE_LONG,
+            type,
+            name,
+            unique_id,
+            state ? "true" : "false",
+            (unsigned int)bri,
+            timer_state ? "true" : "false",
+            minutes,
+            start_state ? "true" : "false",
+            ota_state ? "true" : "false",
+            temperature,
+            thermal_shutdown_count,
+            wifi_ssid,
+            wifi_signal,
+            sw_version
+        );
+
+    #else
+
+        return snprintf(out, out_len, LIGHT_TEMPLATE_LONG,
+            type,
+            name,
+            unique_id,
+            state ? "true" : "false",
+            (unsigned int)bri,
+            timer_state ? "true" : "false",
+            minutes,
+            start_state ? "true" : "false",
+            ota_state ? "true" : "false",
+            wifi_ssid,
+            wifi_signal,
+            sw_version
+        );
+
+    #endif
 }
 
 #define LIGHT_STATE_SUCCESS_TEMPLATE \

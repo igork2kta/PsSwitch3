@@ -254,7 +254,7 @@ const char *wifi_manager_get_ssid(void)
     wifi_ap_record_t ap_info;
 
     if (esp_wifi_sta_get_ap_info(&ap_info) != ESP_OK) {
-        return NULL;
+        return "Não conectado";
     }
 
     memcpy(ssid, ap_info.ssid, sizeof(ap_info.ssid));

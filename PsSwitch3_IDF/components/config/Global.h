@@ -2,12 +2,12 @@
 #include "sdkconfig.h"
 //SE A ALEXA TIVER DE GRACINHA PRA ENCONTRAR O DISPOSITIVO, UTILIZANDO CACHE E NÃO ACHANDO, ALTERAR O UNIQUEID DO /LIGHTS
 
-#define SW_VERSION "3.1.3"
-//Não existe constexpr em C
+#define SW_VERSION "3.1.4"
+
 #define device_name_max_len 25
 
-#define DEBUG_HUE false
-#define DEBUG_WEBSERVER false
+#define DEBUG_HUE true
+#define DEBUG_WEBSERVER true
 #define DEBUG_SSDP false
 #define DEBUG_WIFI_ false
 #define DEBUG_TEMPERATURE false

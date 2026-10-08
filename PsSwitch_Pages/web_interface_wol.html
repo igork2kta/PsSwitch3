@@ -1,0 +1,405 @@
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Controle do Dispositivo</title>
+
+<style>
+*{box-sizing:border-box}
+html,body,input{background:#0f2b36}
+html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#d5e6ee}
+.app-wrapper{max-width:480px;width:100%;margin:auto;min-height:100vh;padding:10px 0}
+.center{text-align:center}
+.card{background:#113f50;margin:12px;padding:16px;border-radius:8px}
+.mb10{margin-bottom:10px}
+.mb15{margin-bottom:15px}
+.title{font-size:24px}
+
+.line{display:flex;justify-content:space-between;align-items:center;margin:10px 0;font-size:14px}
+.red-text{color:#ff5555;font-weight:bold}
+
+input{color:#fff;text-align:center;width:60px;padding:10px;border-radius:8px;border:1px solid #4b6a78}
+
+.reset{width:100%;padding:12px;border:0;border-radius:8px;background:#e6e6e6;color:#1670c9;font-size:16px;cursor:pointer}
+
+.switch{position:relative;width:44px;height:22px;display:inline-block}
+.switch input{display:none}
+.slider{position:absolute;inset:0;background:#2a4d5b;border-radius:20px;cursor:pointer}
+.slider:before{content:"";position:absolute;height:18px;width:18px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.slider{background:#1a6f97}
+input:checked+.slider:before{transform:translateX(22px)}
+
+.wol-card{background:#0c2d3a;padding:12px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.wol-info{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;flex:1}
+.wol-name{font-weight:bold;font-size:15px;color:#fff}
+.wol-mac{font-size:13px;color:#8ab4f8}
+.wol-actions{display:flex;align-items:center;gap:12px;margin-left:10px}
+
+.btn-send,.btn-add{background:#fff;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
+.btn-send{color:#0f52ba;padding:8px 16px;font-size:14px}
+.btn-add{color:#007acc;padding:10px 20px;font-size:15px;margin-top:5px}
+.btn-delete{background:transparent;border:0;color:#d5e6ee;font-size:18px;cursor:pointer;padding:0 4px}
+
+.device-input,.new-input{width:100%;background:#2a4d5b;border:1px solid #4b6a78;color:#fff;border-radius:6px;padding:5px 8px;text-align:left;outline:0}
+.device-input{display:none}
+.device-name-input,.new-name-input{font-size:15px;font-weight:bold}
+.device-mac-input,.new-mac-input{font-size:13px}
+.device-input:focus,.new-input:focus{border-color:#6d9aae}
+.new-actions{margin-top:8px}
+</style>
+
+<div class="app-wrapper">
+
+<div class="card center">
+<span class="title">Wake on LAN</span>
+</div>
+
+<div class="card center">
+<div class="mb15" style="font-weight:bold;font-size:18px">Wake on LAN</div>
+<div id="wolList"></div>
+<button id="btnAddWol" class="btn-add">+ Adicionar</button>
+</div>
+
+<div class="card">
+<div class="center mb10">Detalhes</div>
+
+<div class="line">
+<span>Atualização OTA</span>
+<label class="switch"><input type="checkbox" id="otaState"><span class="slider"></span></label>
+</div>
+
+<div class="line" id="tempLine" style="display:none">
+<span>Temperatura:</span><span id="tempVal"></span>
+</div>
+
+<div class="line red-text" id="shutdownLine" style="display:none">
+<span>Desligamentos por temp. alta:</span><span id="shutdownCountVal"></span>
+</div>
+
+<div class="line" id="ssidLine" style="display:none">
+<span>Rede Wi-Fi:</span><span id="ssidVal"></span>
+</div>
+
+<div class="line" id="wifiLine" style="display:none">
+<span>Sinal Wi-Fi:</span><span id="wifiVal"></span>
+</div>
+
+<div class="line">
+Unique ID:<span id="uid"></span>
+</div>
+
+<div class="line">
+Versão do software:<span id="ver"></span>
+</div>
+
+</div>
+
+<div class="card">
+<div class="center mb10">Resetar configurações</div>
+<button class="reset" id="reset">Resetar!</button>
+</div>
+
+</div>
+
+<script>
+const API_BASE="http://192.168.0.20/api/a";
+const $=id=>document.getElementById(id);
+
+function put(url,data){
+ return fetch(API_BASE+url,{
+  method:"PUT",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(data)
+ });
+}
+
+async function populateMacs(){
+ const list=$("wolList");
+ list.innerHTML="";
+
+ try{
+  const res=await fetch(API_BASE+"/lights");
+  if(!res.ok)return;
+
+  const lights=await res.json();
+
+  for(const [key,data] of Object.entries(lights)){
+   const index=+key;
+   const name=data.name||"";
+   let mac=data.uniqueid||"";
+
+   if(mac.length>17)mac=mac.substring(0,17);
+
+   if(name==="Apagado"&&mac==="00:00:00:00:00:00")continue;
+
+   renderWolCard(index,name,mac);
+  }
+ }catch(err){
+  console.error("Erro ao carregar dispositivos:",err);
+ }
+}
+
+function renderWolCard(index,name,mac){
+ const item=document.createElement("div");
+
+ item.className="wol-card";
+ item.dataset.mac=mac;
+ item.dataset.name=name;
+
+ item.innerHTML=`
+<div class="wol-info">
+<span class="wol-name" ondblclick="editDeviceName(${index},this)">${name}</span>
+<input class="device-input device-name-input" onblur="saveDeviceName(${index},this)" onkeydown="if(event.key==='Enter')this.blur()">
+<span class="wol-mac" ondblclick="editDeviceMac(${index},this)">${mac}</span>
+<input class="device-input device-mac-input" onblur="saveDeviceMac(${index},this)" onkeydown="if(event.key==='Enter')this.blur()">
+</div>
+<div class="wol-actions">
+<button class="btn-send" onclick="sendWol(${index})">Enviar</button>
+<button class="btn-delete" onclick="deleteWol(${index})">🗑️</button>
+</div>`;
+
+ $("wolList").appendChild(item);
+}
+
+function addWolCard(){
+ if($("newWolCard"))return;
+
+ const item=document.createElement("div");
+ item.className="wol-card";
+ item.id="newWolCard";
+
+ item.innerHTML=`
+<div class="wol-info">
+<input id="newName" class="new-input new-name-input" placeholder="Nome do dispositivo">
+<input id="newMac" class="new-input new-mac-input" placeholder="00:00:00:00:00:00">
+</div>
+<div class="wol-actions new-actions">
+<button class="btn-send" id="saveNew">Salvar</button>
+<button class="btn-delete" id="cancelNew" title="Cancelar">🗑️</button>
+</div>`;
+
+ $("wolList").appendChild(item);
+ $("btnAddWol").style.display="none";
+ $("saveNew").onclick=saveNewDevice;
+ $("cancelNew").onclick=cancelNewDevice;
+ $("newName").focus();
+}
+
+function cancelNewDevice(){
+ $("newWolCard")?.remove();
+ $("btnAddWol").style.display="inline-block";
+}
+
+async function saveNewDevice(){
+ const name=$("newName").value.trim();
+ const mac=$("newMac").value.trim();
+
+ if(!name||!mac)return;
+
+ try{
+  if((await put("/lights/0/saveDevice",{name,mac})).ok){
+   cancelNewDevice();
+   populateMacs();
+  }
+ }catch(err){
+  console.error("Erro ao salvar dispositivo:",err);
+ }
+}
+
+$("btnAddWol").onclick=addWolCard;
+
+function editDeviceName(index,element){
+ const card=element.closest(".wol-card");
+ const input=card.querySelector(".device-name-input");
+
+ input.value=element.innerText.trim();
+ input.dataset.old=input.value;
+ input.dataset.mac=card.dataset.mac;
+
+ element.style.display="none";
+ input.style.display="block";
+ input.focus();
+}
+
+async function saveDeviceName(index,input){
+const card=input.closest(".wol-card");
+const span=card.querySelector(".wol-name");
+const name=input.value.trim();
+const old=input.dataset.old;
+
+if(!name){
+input.style.display="none";
+span.style.display="inline";
+return;
+}
+
+try{
+const res=await put(`/lights/${index}/saveDevice`,{
+name,
+mac:input.dataset.mac
+});
+
+if(res.ok){
+span.innerText=name;
+card.dataset.name=name;
+}else{
+span.innerText=old;
+}
+}catch{
+span.innerText=old;
+}
+
+input.style.display="none";
+span.style.display="inline";
+}
+
+async function saveDeviceMac(index,input){
+const card=input.closest(".wol-card");
+const span=card.querySelector(".wol-mac");
+const mac=input.value.trim();
+const old=input.dataset.old;
+
+if(!mac){
+input.style.display="none";
+span.style.display="inline";
+return;
+}
+
+try{
+const res=await put(`/lights/${index}/saveDevice`,{
+name:input.dataset.name,
+mac
+});
+
+if(res.ok){
+span.innerText=mac;
+card.dataset.mac=mac;
+}else{
+span.innerText=old;
+card.dataset.mac=old;
+}
+}catch{
+span.innerText=old;
+card.dataset.mac=old;
+}
+
+input.style.display="none";
+span.style.display="inline";
+}
+
+function editDeviceMac(index,element){
+ const card=element.closest(".wol-card");
+ const input=card.querySelector(".device-mac-input");
+
+ input.value=element.innerText.trim();
+ input.dataset.old=input.value;
+ input.dataset.name=card.dataset.name;
+
+ element.style.display="none";
+ input.style.display="block";
+ input.focus();
+}
+
+async function sendWol(index){
+ try{
+  await put(`/lights/${index}/state`,{on:true});
+ }catch(err){
+  console.error("Erro ao enviar:",err);
+ }
+}
+
+async function deleteWol(index){
+ try{
+  if((await put(`/lights/${index}/saveDevice`,{
+   name:"Apagado",
+   mac:"00:00:00:00:00:00"
+  })).ok)populateMacs();
+ }catch(err){
+  console.error("Erro ao remover:",err);
+ }
+}
+
+async function loadState(){
+ populateMacs();
+
+ try{
+  const data=await(await fetch(API_BASE+"/lights/1")).json();
+  const state=data.state||{};
+
+  $("otaState").checked=state.otaState===true||state.otaState==="true";
+  $("uid").innerText=data.uniqueid||"";
+  $("ver").innerText=data.swversion||"";
+
+  const temp=state.temperature??data.temperature;
+
+  if(temp===-999){
+   $("tempLine").style.display="flex";
+   $("tempVal").innerText="erro de leitura";
+  }else if(temp!==undefined&&temp!==-1){
+   $("tempLine").style.display="flex";
+   $("tempVal").innerText=temp+" °C";
+  }
+
+  const ssid=state.wifiSsid??data.wifiSsid;
+
+  if(ssid){
+   $("ssidLine").style.display="flex";
+   $("ssidVal").innerText=ssid;
+  }
+
+  const wifi=state.wifiSignal;
+
+  if(wifi!==undefined&&wifi!==null){
+   $("wifiLine").style.display="flex";
+
+   const label=wifi>=-50?"🟢 Ótimo":
+    wifi>=-60?"🟢 Bom":
+    wifi>=-70?"🟡 Razoável":
+    wifi>=-80?"🟠 Fraco":"🔴 Muito fraco";
+
+   $("wifiVal").innerText=`${label} (${wifi} dBm)`;
+  }
+
+  const shutdown=state.thermalShutdownCount??data.thermalShutdownCount;
+
+  if(shutdown>0){
+   $("shutdownLine").style.display="flex";
+   $("shutdownCountVal").innerText=shutdown;
+  }
+ }catch(err){
+  console.error("Erro ao carregar estado:",err);
+ }
+}
+
+$("otaState").onchange=async function(){
+ const old=!this.checked;
+
+ try{
+  const data=await(await put("/lights/1/otaState",{state:this.checked})).json();
+
+  if(data.message!=="Sucesso!")
+   this.checked=old;
+ }catch{
+  this.checked=old;
+ }
+};
+
+$("reset").onclick=async()=>{
+ if(!confirm("Tem certeza que deseja resetar as configurações?"))return;
+
+ try{
+  const data=await(await put("/lights/1/reset",{
+   key:"f635g2vg3gn54H$"
+  })).json();
+
+  if(data.message==="Sucesso!"){
+   alert("Dispositivo resetado com sucesso!");
+   location.href="https://www.google.com";
+  }else{
+   alert("Falha ao resetar o dispositivo.");
+  }
+ }catch{
+  alert("Erro ao comunicar com o dispositivo.");
+ }
+};
+
+window.onload=loadState;
+</script>

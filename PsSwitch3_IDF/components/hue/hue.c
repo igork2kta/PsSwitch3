@@ -536,7 +536,7 @@ void temperature_task(void *pvParameters)
     #endif
 
 #else
-    float get_temperature(void) return -1; // Retorna um valor inválido se o sensor não estiver habilitado
+    float get_temperature(void) {return -1;} // Retorna um valor inválido se o sensor não estiver habilitado
 #endif
 
 

@@ -1,4 +1,4 @@
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8" name="viewport" content="width=device-width,initial-scale=1">
 <title>Controle do Dispositivo</title>
 <style>
   *{box-sizing:border-box}
@@ -76,14 +76,14 @@
     <div class="line" id="tempLine" style="display:none">
       <span>Temperatura:</span><span id="tempVal"></span>
     </div>
+    <div class="line red-text" id="shutdownLine" style="display:none">
+      <span>Desligamentos por temp. alta:</span><span id="shutdownCountVal"></span>
+    </div>
     <div class="line" id="ssidLine" style="display:none">
       <span>Rede Wi-Fi:</span><span id="ssidVal"></span>
     </div>
     <div class="line" id="wifiLine" style="display:none">
       <span>Sinal Wi-Fi:</span><span id="wifiVal"></span>
-    </div>
-    <div class="line red-text" id="shutdownLine" style="display:none">
-      <span>Desligamentos por temp. alta:</span><span id="shutdownCountVal"></span>
     </div>
     <div class="line">Unique ID: <span id="uid"></span></div>
     <div class="line">Versão do software: <span id="ver"></span></div>
@@ -96,7 +96,7 @@
 </div>
 
 <script>
-  const API = "http://192.168.0.121/api/a/lights/1";
+  const API = "/api/a/lights/1";
   const $ = id => document.getElementById(id);
 
   let ventiladorHTML = "";
